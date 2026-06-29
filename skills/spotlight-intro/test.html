@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotlight Intro — 本地测试 / Local Test</title>
+<style>
+  :root { --orange:#f58426; --blue:#005daa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; color:#111; background:#fafafa; }
+  header { padding:22px 28px; background:#0a0a0a; color:#fff; }
+  header h1 { margin:0 0 4px; font-size:20px; font-weight:800; letter-spacing:-0.01em; }
+  header h1 span { color:var(--orange); }
+  header p { margin:0; color:rgba(255,255,255,0.6); font-size:13px; }
+  main { padding:24px 28px; max-width:980px; margin:0 auto; }
+  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+  button { font:600 14px/1 inherit; padding:11px 20px; border:0; border-radius:8px; background:var(--orange); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.alt { background:#e9e9e9; color:#222; }
+  .status { font-size:13px; color:#666; }
+  video { width:100%; border-radius:10px; background:#000; margin:8px 0 18px; box-shadow:0 8px 30px rgba(0,0,0,.12); }
+  .frames { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:8px 0 18px; }
+  .frames figure { margin:0; }
+  .frames img { width:100%; border-radius:6px; display:block; background:#eee; }
+  .frames figcaption { font-size:11px; color:#888; text-align:center; margin-top:4px; }
+  pre { background:#0f0f10; color:#cfe8c0; padding:14px 16px; border-radius:8px; font-size:12px; overflow:auto; max-height:200px; margin:0; }
+  a.dl { color:var(--blue); font-weight:600; text-decoration:none; }
+  .note { font-size:12px; color:#999; margin-top:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Spotlight <span>Intro</span> — 本地测试台</h1>
+  <p>编辑 render.js 顶部的 CONFIG，回到这里点「生成视频」。出片后自动预览 + 提供下载。可反复生成。</p>
+</header>
+<main>
+  <div class="bar">
+    <button id="run">▶ 生成视频 / Render</button>
+    <button id="dl" class="alt" disabled>⤓ 下载 MP4</button>
+    <span class="status" id="status">就绪。</span>
+  </div>
+  <video id="vid" controls playsinline style="display:none"></video>
+  <div class="frames" id="frames"></div>
+  <pre id="logbox"></pre>
+  <p class="note">提示：本页用浏览器的 WebCodecs (VideoEncoder) 直接出片，需用 Chrome / Edge 打开。CONFIG 改动保存 render.js 后，刷新本页或再次点「生成视频」即可看到新效果。</p>
+</main>
+
+<!-- 测试台为离线双击可用，内嵌了 render.js 的副本；唯一真源仍是 render.js（本副本由构建脚本同步注入）。 -->
+<script>
+const RENDER_BODY = "// Kinetic Department Intro — standalone MP4 renderer.\n//\n// Paste this whole file into the `run_script` tool (it relies on that tool's\n// helpers: fetch, createCanvas, saveFile, log — plus the browser's VideoEncoder\n// and VideoFrame). Edit CONFIG, run, inspect the check frames it writes to\n// scraps/, then present the MP4.\n//\n// The effect: a flood of `DEPTS` names streams in from the right; `HERO` locks\n// dead-centre, holds, then zooms straight up from the centre past the edges\n// while a `BLOOM` circle grows beneath it and the frame settles on solid color.\n\n/* ───────────────────────── CONFIG — edit me ───────────────────────── */\nconst CONFIG = {\n  HERO: 'Network Department',\n  DEPTS: [\n    'HR Department', 'Finance Department', 'Legal Affairs Department',\n    'Corporate Communications & Analytics Team', 'Marketing Team', 'IT Department',\n    'Sales Department', 'Strategic Accounts Sales Team', 'ICT Team',\n    'Mobile Team', 'Solutions Department',\n  ],\n  HERO_COLOR: '#f58426',         // hero text + glow\n  BLOOM_COLOR: '#005daa',        // circle that fills the frame (the end color)\n  BG: '#ffffff',                 // background\n  FILLER: 'rgba(0,0,0,0.5)',    // crowd text — ~rgba(255,255,255,0.5) on dark bg\n  W: 1920, H: 1080,              // 1080 x 1920 for vertical 9:16\n  FPS: 30,\n  DUR: 6.2,                      // seconds\n  BITRATE: 16_000_000,           // ~16 Mbps keeps the giant zoom crisp\n  OUT: 'Network Intro Sequence (White 16x9).mp4',\n  // motion\n  HERO_FS: 118,                  // ~78-92 for vertical\n  HERO_SPEED: 840,               // px/s the hero travels in\n  T_CENTER: 2.7,                 // hero reaches centre\n  T_ZOOM: 3.7,                   // zoom begins (T_ZOOM - T_CENTER = hold length)\n  ZOOM_END: 5.8,                 // zoom + bloom finish\n  ZOOM_MULT: 16.0,               // final scale ≈ 1 + ZOOM_MULT\n  // 4 filler rows: y, font-size, speed px/s, start-x (must be > W to start off-screen)\n  ROWS: [\n    { y: 130, fs: 84, speed: 700, x0: 1980 },\n    { y: 320, fs: 116, speed: 820, x0: 2300 },\n    { y: 760, fs: 124, speed: 760, x0: 2080 },\n    { y: 950, fs: 80, speed: 740, x0: 2450 },\n  ],\n};\n/* ───────────────────────────────────────────────────────────────────── */\n\nconst C = CONFIG;\nconst FF = 'Archivo, system-ui, sans-serif';\nconst CENTER_Y = C.H / 2, CENTER_GAP = 90;\n\n// load the display font (Archivo 800) so canvas measures + renders it\ntry {\n  const ff = new FontFace('Archivo',\n    'url(https://cdn.jsdelivr.net/fontsource/fonts/archivo@latest/latin-800-normal.woff2)',\n    { weight: '800' });\n  await ff.load(); document.fonts.add(ff);\n} catch (e) { log('font load failed, falling back: ' + e); }\n\n// mp4-muxer (UMD) loaded at runtime\nconst src = await (await fetch('https://cdn.jsdelivr.net/npm/mp4-muxer@5.0.1/build/mp4-muxer.min.js')).text();\nconst mod = { exports: {} };\nconst M = (new Function('module', 'exports', 'self', 'window', 'globalThis',\n  src + '\\n;return module.exports;'))(mod, mod.exports, globalThis, globalThis, globalThis) || mod.exports;\n\nconst TOTAL = Math.round(C.DUR * C.FPS);\nconst E = {\n  inCubic: t => t * t * t,\n  inOutCubic: t => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,\n  outCubic: t => (--t) * t * t + 1,\n};\nconst clamp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);\nconst tween = (t, a, b, f, to, e) => t <= a ? f : t >= b ? to : f + (to - f) * e((t - a) / (b - a));\nconst rotate = (arr, n) => { const m = ((n % arr.length) + arr.length) % arr.length; return [...arr.slice(m), ...arr.slice(0, m)]; };\n\nconst canvas = createCanvas(C.W, C.H), ctx = canvas.getContext('2d');\nconst mw = txt => { ctx.font = `800 ${C.HERO_FS}px ${FF}`; return ctx.measureText(txt).width; };\n\n// each row rotates the list differently so every name gets screen time\nfunction rowItems(ri) {\n  const base = rotate(C.DEPTS, ri * 3 + 1);\n  const out = [];\n  for (let rep = 0; rep < 7; rep++) for (const d of base) out.push(d);\n  return out;\n}\n// centre band: short filler ahead, HERO, the rest trailing — whole row starts off-screen\nconst crot = rotate(C.DEPTS, 8);\nconst CENTER_SEQ = [crot[0], C.HERO, ...crot.slice(1)];\nconst CR = (() => {\n  let cursor = 0, heroCenter = 0; const items = [];\n  for (const txt of CENTER_SEQ) {\n    const w = mw(txt);\n    if (txt === C.HERO) heroCenter = cursor + w / 2;\n    else items.push({ txt, x: cursor });\n    cursor += w + CENTER_GAP;\n  }\n  return { items, heroCenter };\n})();\n\nfunction draw(t) {\n  // bg + faint brand vignette\n  ctx.fillStyle = C.BG; ctx.fillRect(0, 0, C.W, C.H);\n  const g = ctx.createRadialGradient(C.W/2, C.H/2, 0, C.W/2, C.H/2, Math.max(C.W, C.H) * 0.57);\n  g.addColorStop(0, C.BLOOM_COLOR + '12'); g.addColorStop(0.6, C.BLOOM_COLOR + '00');\n  ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);\n\n  const streamOp = tween(t, C.T_ZOOM, 4.5, 1, 0.07, E.inOutCubic);\n  const heroTX = C.HERO_SPEED * (C.T_CENTER - Math.min(t, C.T_CENTER));\n\n  // crowd (filler rows + centre band) — all slide left, dim once the zoom starts\n  ctx.save(); ctx.globalAlpha = streamOp; ctx.textBaseline = 'middle'; ctx.fillStyle = C.FILLER;\n  C.ROWS.forEach((r, ri) => {\n    const items = rowItems(ri); let cx = r.x0 - r.speed * t;\n    ctx.font = `800 ${r.fs}px ${FF}`;\n    for (const d of items) { const w = ctx.measureText(d).width; if (cx > -w - 100 && cx < C.W + 100) ctx.fillText(d, cx, r.y); cx += w + 80; }\n  });\n  const centerRowX = (C.W/2 - CR.heroCenter) + heroTX; ctx.font = `800 ${C.HERO_FS}px ${FF}`;\n  for (const it of CR.items) { const x = centerRowX + it.x, w = mw(it.txt); if (x > -w - 100 && x < C.W + 100) ctx.fillText(it.txt, x, CENTER_Y); }\n  ctx.restore();\n\n  // bloom circle — UNDER the hero, grows past the corners, becomes the end color\n  const wipeR = tween(t, 3.9, C.ZOOM_END, 0, Math.hypot(C.W, C.H) * 0.69, E.outCubic);\n  if (wipeR > 0) { ctx.fillStyle = C.BLOOM_COLOR; ctx.beginPath(); ctx.arc(C.W/2, C.H/2, wipeR, 0, Math.PI * 2); ctx.fill(); }\n\n  // hero ON TOP — centered vertical zoom; glow only during the hold; fades out at the very end\n  const zoomP = E.inCubic(seg(t, C.T_ZOOM, C.ZOOM_END));\n  const heroScale = 1 + zoomP * C.ZOOM_MULT;\n  const heroOp = tween(t, 5.2, 5.85, 1, 0, E.inOutCubic);\n  const glowP = seg(t, C.T_CENTER - 0.25, C.T_CENTER) * (1 - seg(t, C.T_ZOOM - 0.15, C.T_ZOOM));\n  if (heroOp > 0.001) {\n    ctx.save(); ctx.globalAlpha = heroOp;\n    ctx.translate(C.W/2 + heroTX, C.H/2); ctx.scale(heroScale, heroScale);\n    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';\n    if (glowP > 0.001) { ctx.shadowColor = `rgba(245,132,38,${0.5 * glowP})`; ctx.shadowBlur = 46 * glowP; }\n    ctx.fillStyle = C.HERO_COLOR; ctx.font = `800 ${C.HERO_FS}px ${FF}`;\n    ctx.fillText(C.HERO, 0, 0); ctx.restore();\n  }\n}\n\n// encode\nconst muxer = new M.Muxer({ target: new M.ArrayBufferTarget(), video: { codec: 'avc', width: C.W, height: C.H }, fastStart: 'in-memory' });\nconst enc = new VideoEncoder({ output: (ch, m) => muxer.addVideoChunk(ch, m), error: e => { throw e; } });\nenc.configure({ codec: 'avc1.42E028', width: C.W, height: C.H, bitrate: C.BITRATE, framerate: C.FPS });\nfor (let i = 0; i < TOTAL; i++) {\n  draw(i / C.FPS);\n  const fr = new VideoFrame(canvas, { timestamp: Math.round(i * 1e6 / C.FPS), duration: Math.round(1e6 / C.FPS) });\n  enc.encode(fr, { keyFrame: i % 60 === 0 }); fr.close();\n}\nawait enc.flush(); muxer.finalize();\nawait saveFile(C.OUT, new Blob([muxer.target.buffer], { type: 'video/mp4' }));\n\n// coverage check: confirm every filler name appears on-screen at some point\nconst seen = new Set();\nfor (let i = 0; i < TOTAL; i++) {\n  const t = i / C.FPS;\n  C.ROWS.forEach((r, ri) => { let cx = r.x0 - r.speed * t; ctx.font = `800 ${r.fs}px ${FF}`; for (const d of rowItems(ri)) { const w = ctx.measureText(d).width; if (cx > -w && cx < C.W) seen.add(d); cx += w + 80; } });\n}\nconst missing = C.DEPTS.filter(d => !seen.has(d));\nlog('distinct filler names seen: ' + seen.size + '/' + C.DEPTS.length + ' · missing: ' + (missing.join(', ') || 'none'));\n\n// check frames — ALWAYS view a mid-zoom + final frame before delivering\nfor (const ts of [0.25, C.T_CENTER, (C.T_ZOOM + C.ZOOM_END) / 2, C.DUR - 0.1]) {\n  draw(ts); await saveFile('scraps/check_' + String(ts).replace('.', '_') + '.png', canvas);\n}\nlog('MP4 ' + (muxer.target.buffer.byteLength / 1024).toFixed(0) + 'KB · ' + TOTAL + ' frames · ' + C.W + 'x' + C.H);\n";
+</script>
+<script>
+const logbox = document.getElementById('logbox');
+const statusEl = document.getElementById('status');
+const vid = document.getElementById('vid');
+const framesEl = document.getElementById('frames');
+const dlBtn = document.getElementById('dl');
+const runBtn = document.getElementById('run');
+let lastBlob = null, lastName = 'spotlight-intro.mp4';
+
+function log(...a){ logbox.textContent += a.join(' ') + '\n'; logbox.scrollTop = logbox.scrollHeight; }
+function createCanvas(w,h){ const c = document.createElement('canvas'); c.width=w; c.height=h; return c; }
+async function saveFile(path, data){
+  if (data instanceof Blob){
+    if (path.toLowerCase().endsWith('.mp4')){
+      lastBlob = data; lastName = path.split('/').pop();
+      vid.src = URL.createObjectURL(data); vid.style.display='block';
+      dlBtn.disabled = false;
+    }
+  } else if (data && data.toDataURL){ // canvas check-frame
+    const fig = document.createElement('figure');
+    const img = document.createElement('img'); img.src = data.toDataURL('image/png');
+    const cap = document.createElement('figcaption'); cap.textContent = path.split('/').pop().replace(/^check_|\.png$/g,'').replace('_','.') + 's';
+    fig.appendChild(img); fig.appendChild(cap); framesEl.appendChild(fig);
+  }
+}
+
+async function runRender(){
+  runBtn.disabled = true; dlBtn.disabled = true;
+  logbox.textContent = ''; framesEl.innerHTML = ''; vid.style.display='none';
+  statusEl.textContent = '渲染中…（约几秒）';
+  const t0 = performance.now();
+  try {
+    const fn = new Function('createCanvas','saveFile','log',
+      '"use strict"; return (async () => {\n' + RENDER_BODY + '\n})();');
+    await fn(createCanvas, saveFile, log);
+    statusEl.textContent = '完成 · 用时 ' + ((performance.now()-t0)/1000).toFixed(1) + 's';
+  } catch(e){
+    statusEl.textContent = '出错：' + e.message;
+    log('ERROR: ' + (e.stack || e));
+  } finally { runBtn.disabled = false; }
+}
+
+dlBtn.addEventListener('click', ()=>{
+  if (!lastBlob) return;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = lastName; a.click();
+});
+runBtn.addEventListener('click', runRender);
+</script>
+</body>
+</html>

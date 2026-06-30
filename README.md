@@ -1,3 +1,7 @@
+<p align="right">
+  简体中文 | <a href="./README.en.md">English</a>
+</p>
+
 <h1 align="center">Spotlight Intro</h1>
 
 <p align="center">

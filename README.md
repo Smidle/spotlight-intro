@@ -78,3 +78,9 @@ npx skills add Smidle/spotlight-intro
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Smidle/spotlight-intro&type=Date)](https://www.star-history.com/#Smidle/spotlight-intro&Date)
+
+## 访问量 / 克隆量历史
+
+GitHub 官方的流量统计只保留最近 14 天，本仓库用 [`jgehrcke/github-repo-stats`](https://github.com/jgehrcke/github-repo-stats) 每天定时抓取快照、持久化到 [`github-repo-stats`](https://github.com/Smidle/spotlight-intro/tree/github-repo-stats) 分支，从而累积长期趋势。
+
+📊 **[查看完整访问量 / 克隆量报告](https://smidle.github.io/spotlight-intro/Smidle/spotlight-intro/latest-report/report.html)**（每日更新）

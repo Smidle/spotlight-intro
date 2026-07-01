@@ -92,3 +92,9 @@ See [`SKILL.md`](skills/spotlight-intro/SKILL.md) for the full reasoning behind 
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Smidle/spotlight-intro&type=Date)](https://www.star-history.com/#Smidle/spotlight-intro&Date)
+
+## Views / Clones History
+
+GitHub's built-in traffic API only retains a trailing 14-day window. This repo uses [`jgehrcke/github-repo-stats`](https://github.com/jgehrcke/github-repo-stats) to snapshot it daily and persist it to the [`github-repo-stats`](https://github.com/Smidle/spotlight-intro/tree/github-repo-stats) branch, building a long-term trend.
+
+📊 **[View the full views / clones report](https://smidle.github.io/spotlight-intro/Smidle/spotlight-intro/latest-report/report.html)** (updated daily)

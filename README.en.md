@@ -88,3 +88,7 @@ defining shape is *many items flood in, one wins and takes over the screen*.
 - **Every item in the list actually appears** (rotate the list per row and verify coverage).
 
 See [`SKILL.md`](skills/spotlight-intro/SKILL.md) for the full reasoning behind each.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Smidle/spotlight-intro&type=Date)](https://www.star-history.com/#Smidle/spotlight-intro&Date)

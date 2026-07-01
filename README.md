@@ -74,3 +74,7 @@ npx skills add Smidle/spotlight-intro
 - 列表里**每一项都要真的出现**（每行用不同偏移轮转列表并校验覆盖）。
 
 完整推理见 [`SKILL.md`](skills/spotlight-intro/SKILL.md)。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Smidle/spotlight-intro&type=Date)](https://www.star-history.com/#Smidle/spotlight-intro&Date)

@@ -1,0 +1,19 @@
+name: github-repo-stats
+
+on:
+  schedule:
+    # Daily at 23:00 UTC — GitHub's traffic API only keeps a 14-day trailing
+    # window, so this snapshot is what builds long-term history over time.
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  j1:
+    runs-on: ubuntu-latest
+    name: github-repo-stats
+    steps:
+      - name: run-ghrs
+        uses: jgehrcke/github-repo-stats@v1.6.0-lts
+        with:
+          repository: Smidle/spotlight-intro
+          ghtoken: ${{ secrets.GHRS_GITHUB_API_TOKEN }}

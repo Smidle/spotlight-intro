@@ -13,7 +13,7 @@ jobs:
     name: github-repo-stats
     steps:
       - name: run-ghrs
-        uses: jgehrcke/github-repo-stats@v1.6.0-lts
+        uses: jgehrcke/github-repo-stats@v1.4.2
         with:
           repository: Smidle/spotlight-intro
           ghtoken: ${{ secrets.GHRS_GITHUB_API_TOKEN }}
